@@ -1,0 +1,10 @@
+<?php
+$host = "localhost";
+$username = "root";
+$password = "";
+$database = "si_gudang";
+
+// Create connection
+$koneksi = mysqli_connect($host,$username,$password,$database);
+if (!$koneksi) { die ('Koneksi gagal: '.mysqli_connect_eror()); }
+?>
