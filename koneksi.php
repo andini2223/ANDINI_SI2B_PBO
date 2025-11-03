@@ -1,4 +1,5 @@
 <?php
+session_start();
 
 class database
 {
@@ -10,52 +11,81 @@ class database
 
     function __construct()
     {
-        $this->koneksi = mysqli_connect($this->Host,$this->Username,$this->Password,$this->Database);
-        if(mysqli_connect_errno()){
+        $this->koneksi = mysqli_connect($this->Host, $this->Username, $this->Password, $this->Database);
+        if (mysqli_connect_errno()) {
             echo "Koneksi database gagal : " . mysqli_connect_error();
         }
     }
 
-    function tampil_data()
+    // LOGIN
+    function login($username, $password)
     {
-        $data = mysqli_query($this->koneksi,"select * from tb_barang");
-        while($d = mysqli_fetch_array($data)){
-            $hasil[] = $d;
+        if ($username == "admin" && $password == "admin") {
+            $_SESSION['username'] = $username;
+            return true;
+        } else {
+            return false;
         }
-        return $hasil;
     }
 
-    function tambah_data($nama_barang,$stok,$harga_beli,$harga_jual)
+    // LOGOUT
+    function logout()
     {
-        mysqli_query($this->koneksi,"insert into tb_barang values('','$nama_barang','$stok','$harga_beli','$harga_jual')");
+        session_destroy();
+        header("Location: index.php");
+        exit;
+    }
+
+    // CEK LOGIN
+    function cek_login()
+    {
+        if (!isset($_SESSION['username'])) {
+            header("Location: index.php");
+            exit;
+        }
+    }
+
+    // CRUD
+    function tampil_data()
+    {
+        $data = mysqli_query($this->koneksi, "SELECT * FROM tb_barang");
+        while ($d = mysqli_fetch_array($data)) {
+            $hasil[] = $d;
+        }
+        return $hasil ?? [];
+    }
+
+    function tambah_data($nama_barang, $stok, $harga_beli, $harga_jual)
+    {
+        mysqli_query($this->koneksi, "INSERT INTO tb_barang VALUES('', '$nama_barang', '$stok', '$harga_beli', '$harga_jual')");
     }
 
     function tampil_edit($id_barang)
     {
-        $data = mysqli_query($this->koneksi,"select * from tb_barang where id_barang='$id_barang'");
-        while($d = mysqli_fetch_array($data)){
+        $data = mysqli_query($this->koneksi, "SELECT * FROM tb_barang WHERE id_barang='$id_barang'");
+        while ($d = mysqli_fetch_array($data)) {
             $hasil[] = $d;
         }
-        return $hasil;
+        return $hasil ?? [];
     }
 
-    function edit_data($id_barang,$nama_barang,$stok,$harga_beli,$harga_jual)
+    function edit_data($id_barang, $nama_barang, $stok, $harga_beli, $harga_jual)
     {
-        mysqli_query($this->koneksi,"update tb_barang set nama_barang='$nama_barang',stok='$stok',harga_beli='$harga_beli',harga_jual='$harga_jual' where id_barang='$id_barang'");
+        mysqli_query($this->koneksi, "UPDATE tb_barang SET nama_barang='$nama_barang', stok='$stok', harga_beli='$harga_beli', harga_jual='$harga_jual' WHERE id_barang='$id_barang'");
     }
 
     function delete_data($id_barang)
     {
-        mysqli_query($this->koneksi,"delete from tb_barang where id_barang='$id_barang'");
+        mysqli_query($this->koneksi, "DELETE FROM tb_barang WHERE id_barang='$id_barang'");
     }
 
     function cari_data($nama_barang)
     {
-        $data = mysqli_query($this->koneksi,"select * from tb_barang where nama_barang='$nama_barang'");
-        while($d = mysqli_fetch_array($data)){
+        $data = mysqli_query($this->koneksi, "SELECT * FROM tb_barang WHERE nama_barang LIKE '%$nama_barang%'");
+        while ($d = mysqli_fetch_array($data)) {
             $hasil[] = $d;
         }
-        return $hasil;
+        return $hasil ?? [];
     }
 }
 ?>
