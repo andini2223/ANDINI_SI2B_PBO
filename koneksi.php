@@ -1,179 +1,182 @@
 <?php
-class database {
+class database{
+
     var $host = "localhost";
     var $username = "root";
-    var $password = "";
-    var $database = "belajar_oop";
-    var $koneksi = "";
+    var $password = ""; 
+    var $database = "belajar_oop3";
+    var $koneksi;
 
     function __construct(){
         $this->koneksi = mysqli_connect($this->host, $this->username, $this->password, $this->database);
-        if (mysqli_connect_error()){
-            die("Koneksi database gagal : " . mysqli_connect_error());
+        if(mysqli_connect_error()){
+            echo "Koneksi database gagal : " . mysqli_connect_error();
         }
     }
 
-    // ==========================================================
-    // FUNGSI LOGIN
-    // ==========================================================
-    function cek_login($username, $password){
-        $user_aman = mysqli_real_escape_string($this->koneksi, $username);
-        $pass_aman = mysqli_real_escape_string($this->koneksi, $password);
-        $query = "SELECT * FROM user WHERE username='$user_aman' AND password='$pass_aman'";
-        $data = mysqli_query($this->koneksi, $query);
-        return mysqli_fetch_assoc($data);
-    }
-
-    // ==========================================================
-    // FUNGSI BARANG (CRUD & PENCARIAN)
-    // ==========================================================
-    function tampil_data($cari = ""){ 
-        $query_sql = "SELECT * FROM tb_barang";
-        if(!empty($cari)){
-            $cari_aman = mysqli_real_escape_string($this->koneksi, $cari);
-            $query_sql = "SELECT * FROM tb_barang WHERE nama_barang LIKE '%$cari_aman%' OR kd_barang LIKE '%$cari_aman%'";
-        }
-        $data = mysqli_query($this->koneksi, $query_sql);
+    // --- FUNGSI CRUD BARANG (TIDAK BERUBAH) ---
+    function tampil_data(){
+        $data = mysqli_query($this->koneksi, "select * from tb_barang");
         $hasil = [];
-        while ($row = mysqli_fetch_array($data)){ $hasil[] = $row; }
+        while($row = mysqli_fetch_array($data)){
+            $hasil[] = $row;
+        }
         return $hasil;
     }
     
-    function tampil_data_per_kode($kd_barang){
-        $kd_barang_aman = mysqli_real_escape_string($this->koneksi, $kd_barang);
-        $data = mysqli_query($this->koneksi, "SELECT * FROM tb_barang WHERE kd_barang = '$kd_barang_aman'");
-        return mysqli_fetch_assoc($data);
+    function cari_data($keyword){
+        $keyword = $this->koneksi->real_escape_string($keyword);
+        $query = "SELECT * FROM tb_barang WHERE kd_barang LIKE '%$keyword%'";
+        $data = mysqli_query($this->koneksi, $query);
+        
+        $hasil = [];
+        while($row = mysqli_fetch_array($data)){ 
+            $hasil[] = $row;
+        }
+        return $hasil;
     }
-    
-    function tambah_data($id_barang, $nama_barang, $stok, $harga_beli, $harga_jual){
-        mysqli_query($this->koneksi, "insert into tb_barang values ('', '$id_barang', '$nama_barang', '$stok', '$harga_beli', '$harga_jual')");
+
+    function tambah_data($kd_barang, $nama_barang, $stok, $harga_beli, $harga_jual, $gambar_produk){
+        // ... (Kode untuk tambah data) ...
+        $kd_barang = $this->koneksi->real_escape_string($kd_barang);
+        $nama_barang = $this->koneksi->real_escape_string($nama_barang);
+        
+        if($gambar_produk != "") {
+            $ekstensi_diperbolehkan = array('png', 'jpg', 'jpeg');
+            $x = explode('.', $gambar_produk); 
+            $ekstensi = strtolower(end($x));
+            $file_tmp = $_FILES['gambar_produk']['tmp_name'];
+            $angka_acak = rand(1, 999);
+            $nama_gambar_baru = $angka_acak . '-' . $gambar_produk;
+
+            if(in_array($ekstensi, $ekstensi_diperbolehkan) === true) {
+                move_uploaded_file($file_tmp, 'gambar/'. $nama_gambar_baru);
+
+                $query = "INSERT INTO tb_barang (kd_barang, nama_barang, stok, harga_beli, harga_jual, gambar_produk) VALUES ('$kd_barang', '$nama_barang', '$stok', '$harga_beli', '$harga_jual', '$nama_gambar_baru')";
+                $result = mysqli_query($this->koneksi, $query);
+
+                if(!$result){
+                    die ("Query gagal dijalankan: " . mysqli_errno($this->koneksi) . " - " . mysqli_error($this->koneksi));
+                } else {
+                    echo "<script>alert('Data berhasil ditambah.'); window.location='tampil.php';</script>";
+                }
+            } else {
+                echo "<script>alert('Ekstensi gambar yang boleh hanya jpg, jpeg atau png.'); window.location='tambah_data.php';</script>";
+            }
+        } else {
+            $query = "INSERT INTO tb_barang (kd_barang, nama_barang, stok, harga_beli, harga_jual, gambar_produk) VALUES ('$kd_barang', '$nama_barang', '$stok', '$harga_beli', '$harga_jual', '')";
+            $result = mysqli_query($this->koneksi, $query);
+
+            if(!$result){
+                die ("Query gagal dijalankan: " . mysqli_errno($this->koneksi) . " - " . mysqli_error($this->koneksi));
+            } else {
+                echo "<script>alert('Data berhasil ditambah.'); window.location='tampil.php';</script>";
+            }
+        }
     }
     
     function tampil_edit_data($id_barang){
         $data = mysqli_query($this->koneksi, "select * from tb_barang where id_barang='$id_barang'");
         $hasil = [];
-        while ($d = mysqli_fetch_array($data)){ $hasil[] = $d; }
+        while($d = mysqli_fetch_array($data)){
+            $hasil[] = $d;
+        }
         return $hasil;
     }
 
-    function edit_data($id_barang, $nama_barang, $stok, $harga_beli, $harga_jual){
-        mysqli_query($this->koneksi, "update tb_barang set nama_barang='$nama_barang', stok='$stok', harga_beli='$harga_beli', harga_jual='$harga_jual' where id_barang='$id_barang'");
+    function edit_data($id_barang, $nama_barang, $stok, $harga_beli, $harga_jual, $gambar_produk){
+        // ... (Kode untuk edit data) ...
+        $nama_barang = $this->koneksi->real_escape_string($nama_barang);
+        $id_barang = $this->koneksi->real_escape_string($id_barang);
+
+        if($gambar_produk != "") {
+            $ekstensi_diperbolehkan = array('png', 'jpg', 'jpeg');
+            $x = explode('.', $gambar_produk); 
+            $ekstensi = strtolower(end($x));
+            $file_tmp = $_FILES['gambar_produk']['tmp_name'];
+            $angka_acak = rand(1, 999);
+            $nama_gambar_baru = $angka_acak . '-' . $gambar_produk;
+
+            if(in_array($ekstensi, $ekstensi_diperbolehkan) === true) {
+                move_uploaded_file($file_tmp, 'gambar/'. $nama_gambar_baru);
+                
+                $query = "UPDATE tb_barang SET nama_barang='$nama_barang', stok='$stok', harga_beli='$harga_beli', harga_jual='$harga_jual', gambar_produk='$nama_gambar_baru' WHERE id_barang='$id_barang'";
+                $result = mysqli_query($this->koneksi, $query);
+
+                if(!$result){
+                    die ("Query gagal dijalankan: " . mysqli_errno($this->koneksi) . " - " . mysqli_error($this->koneksi));
+                } else {
+                    echo "<script>alert('Data berhasil diubah.'); window.location='tampil.php';</script>";
+                }
+            } else {
+                echo "<script>alert('Ekstensi gambar yang boleh hanya jpg, jpeg atau png.'); window.location='edit_data.php?id_barang=$id_barang';</script>";
+            }
+        } else {
+            $query = "UPDATE tb_barang SET nama_barang='$nama_barang', stok='$stok', harga_beli='$harga_beli', harga_jual='$harga_jual' WHERE id_barang='$id_barang'";
+            $result = mysqli_query($this->koneksi, $query);
+
+            if(!$result){
+                die ("Query gagal dijalankan: " . mysqli_errno($this->koneksi) . " - " . mysqli_error($this->koneksi));
+            } else {
+                echo "<script>alert('Data berhasil diubah.'); window.location='tampil.php';</script>";
+            }
+        }
     }
 
     function delete_data($id_barang){
         mysqli_query($this->koneksi, "delete from tb_barang where id_barang='$id_barang'");
     }
 
-    // ==========================================================
-    // FUNGSI CUSTOMER (CRUD & PENCARIAN)
-    // ==========================================================
-    function kode_customer(){
-        $data = mysqli_query($this->koneksi, "SELECT MAX(id_customer) AS max_kode FROM tb_customer");
-        $row = mysqli_fetch_assoc($data);
-        $max_kode = $row['max_kode'];
-        $next_number = empty($max_kode) ? 1 : (int) substr($max_kode, 2) + 1;
-        return 'CS' . str_pad($next_number, 3, '0', STR_PAD_LEFT);
-    }
-
-    function tampil_data_customer($cari = ""){ // MENDUKUNG PENCARIAN CUSTOMER
-        $query_sql = "SELECT * FROM tb_customer";
-        if(!empty($cari)){
-            $cari_aman = mysqli_real_escape_string($this->koneksi, $cari);
-            $query_sql = "SELECT * FROM tb_customer 
-                          WHERE nama_customer LIKE '%$cari_aman%' 
-                          OR NIK_customer LIKE '%$cari_aman%'
-                          OR email_customer LIKE '%$cari_aman%'";
+    // --- FUNGSI CRUD USER (DIPERLUKAN UNTUK tampil_pengguna.php) ---
+    function tampil_user(){
+        $data = mysqli_query($this->koneksi, "select * from user");
+        $hasil = [];
+        while($row = mysqli_fetch_array($data)){
+            $hasil[] = $row;
         }
-        $data = mysqli_query($this->koneksi, $query_sql);
-        $hasil = [];
-        while ($row = mysqli_fetch_array($data)){ $hasil[] = $row; }
-        return $hasil;
-    }
-
-    function tambah_data_customer($nik, $nama, $jk, $alamat, $telp, $email, $pass){
-        $formatted_id = $this->kode_customer();
-        $query = "INSERT INTO tb_customer (id_customer, nik_customer, nama_customer, jenis_kelamin, alamat_customer, telepon_customer, email_customer, pass_customer) 
-                  VALUES ('$formatted_id', '$nik', '$nama', '$jk', '$alamat', '$telp', '$email', '$pass')";
-        mysqli_query($this->koneksi, $query);
-    }
-    
-    function tampil_edit_data_customer($id){
-        $id_aman = mysqli_real_escape_string($this->koneksi, $id);
-        $data = mysqli_query($this->koneksi, "SELECT * FROM tb_customer WHERE id_customer='$id_aman'");
-        $hasil = [];
-        while ($d = mysqli_fetch_array($data)){ $hasil[] = $d; }
         return $hasil;
     }
     
-    function edit_data_customer($id, $nik, $nama, $jk, $alamat, $telp, $email, $pass){
-        $id_aman = mysqli_real_escape_string($this->koneksi, $id);
-        $query = "UPDATE tb_customer SET NIK_customer='$nik', nama_customer='$nama', jenis_kelamin='$jk', alamat_customer='$alamat', telepon_customer='$telp', email_customer='$email', pass_customer='$pass' WHERE id_customer='$id_aman'";
-        mysqli_query($this->koneksi, $query);
-    }
-
-    function delete_data_customer($id){
-        $id_aman = mysqli_real_escape_string($this->koneksi, $id);
-        mysqli_query($this->koneksi, "DELETE FROM tb_customer WHERE id_customer='$id_aman'");
+    function delete_user($id){
+        mysqli_query($this->koneksi, "delete from user where id='$id'");
+        header('location:tampil_pengguna.php'); 
     }
     
-    // ==========================================================
-    // FUNGSI SUPPLIER (CRUD & PENCARIAN)
-    // ==========================================================
-    function kode_supplier(){
-        $data = mysqli_query($this->koneksi, "SELECT MAX(id_supplier) AS max_kode FROM tb_supplier");
-        $row = mysqli_fetch_assoc($data);
-        $max_kode = $row['max_kode'];
-        $next_number = empty($max_kode) ? 1 : (int) substr($max_kode, 2) + 1;
-        return 'SP' . str_pad($next_number, 3, '0', STR_PAD_LEFT);
-    }
+    // ===============================================
+    // --- FUNGSI LOGIN DAN LOGOUT (YANG DIMINTA) ---
+    // ===============================================
     
-    function tampil_data_supplier($cari = ""){ // MENDUKUNG PENCARIAN SUPPLIER
-        $query_sql = "SELECT * FROM tb_supplier";
-        if(!empty($cari)){
-            $cari_aman = mysqli_real_escape_string($this->koneksi, $cari);
-            $query_sql = "SELECT * FROM tb_supplier 
-                          WHERE nama_supplier LIKE '%$cari_aman%' 
-                          OR email_supplier LIKE '%$cari_aman%'";
+    /**
+     * Menangani proses login user.
+     */
+    function login($username, $password){
+        // Sanitisasi input untuk keamanan
+        $username = $this->koneksi->real_escape_string($username);
+        $password = $this->koneksi->real_escape_string($password);
+        
+        // Cari user di tabel 'user'
+        $data = mysqli_query($this->koneksi, "SELECT * FROM user WHERE username='$username' AND password='$password'");
+        $cek = mysqli_num_rows($data);
+        
+        if($cek > 0){
+            // Jika user ditemukan, mulai sesi dan set status login
+            session_start();
+            $_SESSION['username'] = $username;
+            $_SESSION['status'] = "login";
+            header("location:tampil.php"); // Arahkan ke halaman utama
+        } else {
+            // Jika login gagal
+            header("location:index.php?pesan=gagal");
         }
-        $data = mysqli_query($this->koneksi, $query_sql);
-        $hasil = [];
-        while ($row = mysqli_fetch_array($data)){ $hasil[] = $row; }
-        return $hasil;
-    }
-
-    function tambah_data_supplier($nama, $alamat, $telp, $email, $pass){
-        $formatted_id = $this->kode_supplier();
-        $query = "INSERT INTO tb_supplier (id_supplier, nama_supplier, alamat_supplier, telepon_supplier, email_supplier, pass_supplier) 
-                  VALUES ('$formatted_id', '$nama', '$alamat', '$telp', '$email', '$pass')";
-        mysqli_query($this->koneksi, $query);
     }
     
-    function tampil_edit_data_supplier($id){
-        $id_aman = mysqli_real_escape_string($this->koneksi, $id);
-        $data = mysqli_query($this->koneksi, "SELECT * FROM tb_supplier WHERE id_supplier='$id_aman'");
-        $hasil = [];
-        while ($d = mysqli_fetch_array($data)){ $hasil[] = $d; }
-        return $hasil;
-    }
-    
-    function edit_data_supplier($id, $nama, $alamat, $telp, $email, $pass){
-        $id_aman = mysqli_real_escape_string($this->koneksi, $id);
-        $query = "UPDATE tb_supplier SET nama_supplier='$nama', alamat_supplier='$alamat', telepon_supplier='$telp', email_supplier='$email', pass_supplier='$pass' WHERE id_supplier='$id_aman'";
-        mysqli_query($this->koneksi, $query);
-    }
-    
-    function delete_data_supplier($id){
-        $id_aman = mysqli_real_escape_string($this->koneksi, $id);
-        mysqli_query($this->koneksi, "DELETE FROM tb_supplier WHERE id_supplier='$id_aman'");
-    }
-    function kode_barang(){
-    // Mengambil kode barang terbesar untuk membuat kode baru
-    $data = mysqli_query($this->koneksi, "SELECT MAX(kd_barang) AS kd_barang FROM tb_barang");
-    $hasil = [];
-    while ($row = mysqli_fetch_array($data)){
-        $hasil[] = $row;
-        }
-    return $hasil;
+    /**
+     * Menangani proses logout user.
+     */
+    function logout(){
+        session_start();
+        session_destroy(); // Menghancurkan semua sesi
+        header("location:index.php?pesan=logout"); // Arahkan kembali ke halaman login
     }
 }
 ?>

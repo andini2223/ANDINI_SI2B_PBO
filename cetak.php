@@ -1,51 +1,65 @@
 <?php
-include ('koneksi.php');
-$db = new database();
+include 'koneksi.php';
+$db = new database(); // panggil class kamu
+
+function rupiah($angka){
+    return "Rp " . number_format($angka,0,',','.');
+}
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title></title>
-    <style type="text/css">
-        form {background:border}
-        margin:0px 230px;
-        color:white;
+    <title>Cetak Data Barang</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        h2 { text-align: center; }
+        table {
+            width: 90%;
+            margin: auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #d0e9ff;
+        }
     </style>
 </head>
-<body>
-    <h2>LAPORAN DATA BARANG CV JAYA</h2>
-    <table width="667" border="1">
+<body onload="window.print()">
+
+<h2>Laporan Data Barang</h2>
+
+<table>
+    <tr>
+        <th>No</th>
+        <th>Kode Barang</th>
+        <th>Nama Barang</th>
+        <th>Stok</th>
+        <th>Harga Beli</th>
+        <th>Harga Jual</th>
+        <th>Gambar</th>
+    </tr>
+
+    <?php
+    $no = 1;
+    foreach ($db->tampil_data() as $row) {
+        echo "
         <tr>
-            <th width="21">No</th>
-            <th width="122">Kode Barang</th>
-            <th width="158">Barang</th>
-            <th width="77">Stok</th>
-            <th width="72">Harga Beli</th>
-            <th width="83">Harga Jual</th>
-            <th width="114">Keuntungan</th>
-        </tr>
-        <?php
-        $data_barang = $db->tampil_data();
-        $no = 1;
-        foreach($data_barang as $row){
-        ?>
-        <tr>
-            <td><?php echo $no++; ?></td>
-            <td><?php echo $row['kd_barang']; ?></td>
-            <td><?php echo $row['nama_barang']; ?></td>
-            <td><?php echo $row['stok']; ?></td>
-            <td><?php echo $row['harga_beli']; ?></td>
-            <td><?php echo $row['harga_jual']; ?></td>
-            <td><?php echo $row['harga_jual']-$row['harga_beli']; ?></td>
-        </tr>
-        <?php
-        }
-        ?>
-    </table>
-    <script>
-        window.print();
-    </script>
-    <a href="index.php">
-    <input type="submit" name="tombol" value="Kembali"></a>
+            <td>{$no}</td>
+            <td>{$row['kd_barang']}</td>
+            <td>{$row['nama_barang']}</td>
+            <td>{$row['stok']}</td>
+            <td>".rupiah($row['harga_beli'])."</td>
+            <td>".rupiah($row['harga_jual'])."</td>
+            <td><img src='gambar/{$row['gambar_produk']}' width='60'></td>
+        </tr>";
+        $no++;
+    }
+    ?>
+</table>
+
 </body>
 </html>
