@@ -2,22 +2,46 @@
 include('koneksi.php');
 $db = new database();
 
-// Fungsi untuk mencari gambar berdasarkan nama barang
+// --- START: LOGIKA PAGINATION & SEARCH ---
+
+// Konfigurasi Pagination
+$data_per_halaman = 5; // Jumlah data per halaman
+$halaman_aktif = (isset($_GET['halaman']) && is_numeric($_GET['halaman'])) ? (int)$_GET['halaman'] : 1;
+$mulai = ($halaman_aktif - 1) * $data_per_halaman; // Hitung offset data
+
+// Ambil keyword pencarian
+$keyword = isset($_GET['cari']) ? trim($_GET['cari']) : '';
+
+// Hitung total data (dengan atau tanpa keyword)
+$total_data = $db->jumlah_total_data($keyword);
+
+// Hitung total halaman
+$total_halaman = ceil($total_data / $data_per_halaman);
+
+// Tentukan data yang akan ditampilkan (dengan limit)
+if (!empty($keyword)) {
+    // Cari data dengan limit
+    $data_barang = $db->cari_data($keyword, $mulai, $data_per_halaman);
+} else {
+    // Tampilkan semua data dengan limit
+    $data_barang = $db->tampil_data_paginated($mulai, $data_per_halaman);
+}
+
+// --- END: LOGIKA PAGINATION & SEARCH ---
+
+// Fungsi untuk mencari gambar berdasarkan nama barang (Diletakkan di sini untuk menghindari error)
 function cari_gambar_barang($nama_barang) {
     $gambar_dir = 'gambar/';
     $gambar_files = scandir($gambar_dir);
     
-    // Normalisasi nama barang (lowercase, hapus spasi berlebih, hapus karakter khusus)
     $nama_normalized = strtolower(trim($nama_barang));
-    $nama_normalized = preg_replace('/\s+/', ' ', $nama_normalized); // Hapus spasi berlebih
+    $nama_normalized = preg_replace('/\s+/', ' ', $nama_normalized);
     $kata_kunci = explode(' ', $nama_normalized);
     
-    // Filter kata kunci yang relevan (minimal 3 karakter)
     $kata_kunci = array_filter($kata_kunci, function($kata) {
         return strlen($kata) >= 3 && !in_array(strtolower($kata), ['pro', 'plus', 'note', 'redmi', 'xiaomi']);
     });
     
-    // Jika tidak ada kata kunci yang cukup, gunakan semua kata
     if (empty($kata_kunci)) {
         $kata_kunci = explode(' ', $nama_normalized);
         $kata_kunci = array_filter($kata_kunci, function($kata) {
@@ -25,7 +49,7 @@ function cari_gambar_barang($nama_barang) {
         });
     }
     
-    // Mapping khusus untuk beberapa kasus berdasarkan file yang ada (prioritas tinggi)
+    // Mapping khusus untuk beberapa kasus (Prioritas Tinggi)
     $mapping_khusus = [
         'samsung m20' => ['samsung m30s', 'samsung'],
         'redmi note6' => ['redmi-note-6', 'note-6-pro', 'note6'],
@@ -61,33 +85,28 @@ function cari_gambar_barang($nama_barang) {
             continue;
         }
         
-        // Skip file logo
         if (stripos($file, 'logo') !== false) {
             continue;
         }
         
         $file_lower = strtolower($file);
-        // Hapus angka di depan nama file (format: 123-nama-file.jpg)
         $file_clean = preg_replace('/^\d+-/', '', $file_lower);
         $file_clean = preg_replace('/\.(jpg|jpeg|png)$/', '', $file_clean);
         
         $score = 0;
         
-        // Hitung skor berdasarkan kemiripan nama
         foreach ($kata_kunci as $kata) {
             if (stripos($file_clean, $kata) !== false || stripos($file_lower, $kata) !== false) {
-                $score += strlen($kata) * 2; // Beri bobot lebih untuk kata yang lebih panjang
+                $score += strlen($kata) * 2;
             }
         }
         
-        // Bonus jika nama barang lengkap ada di nama file
         $nama_singkat = str_replace([' ', '-', '_'], '', $nama_normalized);
         $file_singkat = str_replace([' ', '-', '_'], '', $file_clean);
         if (stripos($file_singkat, $nama_singkat) !== false || stripos($nama_singkat, $file_singkat) !== false) {
-            $score += 20; // Bonus besar untuk kecocokan lengkap
+            $score += 20;
         }
         
-        // Pilih file dengan skor tertinggi
         if ($score > $best_score) {
             $best_score = $score;
             $best_match = $file;
@@ -105,19 +124,22 @@ function cari_gambar_barang($nama_barang) {
     <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
     <title>DATA BARANG</title>
     <style type="text/css">
-        *{
+        * {
             font-family: "Trebuchet MS";
         }
         h1 {
             text-transform: uppercase;
             color: #47C6DB;
+            text-align: center;
+            margin-bottom: 20px;
         }
         table {
             border: solid 1px #DDEEEE;
             border-collapse: collapse;
             border-spacing: 0;
-            width: 70%;
+            width: 90%;
             margin: 10px auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.05);
         }
         table thead th {
             background-color: #DDEFEF;
@@ -132,24 +154,59 @@ function cari_gambar_barang($nama_barang) {
             color: #333;
             padding: 10px;
             text-shadow: 1px 1px 1px #fff;
+            vertical-align: middle;
         }
         table tbody td img {
             max-width: 100px;
             max-height: 100px;
-            object-fit: cover;
+            object-fit: contain;
             border: 1px solid #DDEEEE;
             border-radius: 4px;
+            display: block;
+            margin: 0 auto;
         }
+
+        /* CSS KOLOM ACTION & BUTTONS */
         a {
             background-color: #47C6DB;
             color: #fff;
-            padding: 10px;
+            padding: 8px 10px;
             text-decoration: none;
             font-size: 12px;
+            border-radius: 4px;
+            display: inline-block;
+            transition: background-color 0.3s;
         }
+        a:hover {
+            background-color: #3aa8b8;
+        }
+        
+        a.btn-delete {
+            background-color: #E74C3C;
+        }
+        a.btn-delete:hover {
+            background-color: #C0392B;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        table thead th:last-child {
+            width: 150px;
+            text-align: center;
+        }
+        table tbody td:last-child {
+            text-align: center;
+        }
+        /* END: CSS KOLOM ACTION & BUTTONS */
+
         .search-container {
-            width: 70%;
-            margin: 20px auto;
+            width: 90%;
+            margin: 0 auto 20px auto;
             padding: 15px;
             background-color: #f5f5f5;
             border-radius: 5px;
@@ -183,19 +240,84 @@ function cari_gambar_barang($nama_barang) {
             padding: 10px 15px;
             font-size: 14px;
         }
-        /* ... CSS lain dari source ... */
+        .top-action-links {
+            width: 90%;
+            margin: 20px auto 0 auto;
+            text-align: left;
+            display: flex;
+            gap: 10px;
+        } 
+        
+        /* CSS PAGINATION */
+        .pagination-container {
+            width: 90%;
+            margin: 20px auto 30px auto;
+            text-align: center;
+        }
+        .pagination-container a, .pagination-container span {
+            color: #47C6DB;
+            padding: 8px 16px;
+            text-decoration: none;
+            border: 1px solid #ddd;
+            margin: 0 4px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+            display: inline-block;
+            font-size: 14px;
+        }
+        .pagination-container a:hover:not(.active) {
+            background-color: #f1f1f1;
+        }
+        .pagination-container .active {
+            background-color: #47C6DB;
+            color: white;
+            border: 1px solid #47C6DB;
+        }
     </style>
 </head>
 <body>
+    <style>
+        .navbar {
+            width: 100%;
+            background-color: #47C6DB;
+            padding: 14px 0;
+            display: flex;
+            justify-content: left;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }      
+
+        .navbar a {
+            color: white;
+            padding: 12px 20px;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .navbar a:hover {
+            background-color: #3aa8b8;
+        }
+    </style>
+
+    <div class="navbar">
+        <a href="index.php">Home</a>
+        <a href="tampil.php">Kelola Data</a>
+        <a href="index.php">Logout</a>
+    </div>
+
     <h1>Data Barang</h1>
-    <a href="tambah_data.php">Tambah Data</a> 
-    <br/><br/>
-    
-    <!-- Form Pencarian -->
+
+    <div class="top-action-links">
+        <a href="tambah_data.php">Tambah Data</a> 
+        <a href="cetak.php" target="_blank" style="background:#2ecc71;">Cetak Data Barang</a>
+    </div>
+
     <div class="search-container">
         <form method="GET" action="" class="search-form">
-            <input type="text" name="cari" placeholder="Cari berdasarkan kode barang (contoh: BRG01)..." 
-                   value="<?php echo isset($_GET['cari']) ? htmlspecialchars($_GET['cari']) : ''; ?>">
+            <input type="text" name="cari" placeholder="Cari berdasarkan kode barang/nama barang..." 
+                       value="<?php echo isset($_GET['cari']) ? htmlspecialchars($_GET['cari']) : ''; ?>">
             <input type="submit" value="Cari">
             <?php if(isset($_GET['cari']) && !empty($_GET['cari'])): ?>
                 <a href="tampil.php">Reset</a>
@@ -218,65 +340,54 @@ function cari_gambar_barang($nama_barang) {
         </thead>
         <tbody>
             <?php
-            // Ambil keyword pencarian
-            $keyword = isset($_GET['cari']) ? trim($_GET['cari']) : '';
-            
-            // Tentukan data yang akan ditampilkan
-            if(!empty($keyword)) {
-                $data_barang = $db->cari_data($keyword);
-            } else {
-                $data_barang = $db->tampil_data();
-            }
-            
-            // Tampilkan pesan jika tidak ada hasil
-            if(empty($data_barang) && !empty($keyword)) {
+            if (empty($data_barang) && !empty($keyword)) {
                 echo '<tr><td colspan="8" style="text-align: center; padding: 20px;">';
-                echo 'Data tidak ditemukan untuk kode barang: <strong>' . htmlspecialchars($keyword) . '</strong>';
+                echo 'Data tidak ditemukan untuk keyword: <strong>' . htmlspecialchars($keyword) . '</strong>';
                 echo '</td></tr>';
-            } else if(empty($data_barang)) {
+            } else if (empty($data_barang)) {
                 echo '<tr><td colspan="8" style="text-align: center; padding: 20px;">Tidak ada data barang.</td></tr>';
             }
             
-            $no = 1;
-            foreach($data_barang as $x){ 
+            // Nomor urut disesuaikan dengan halaman aktif
+            $no = $mulai + 1; 
+            foreach ($data_barang as $x) { 
             ?>
             <tr>
                 <td><?php echo $no++; ?></td>
                 <td><?php echo $x['kd_barang']; ?></td>
                 <td><?php echo $x['nama_barang']; ?></td>
                 <td><?php echo $x['stok']; ?></td>
-                <td><?php echo $x['harga_beli']; ?></td>
-                <td><?php echo $x['harga_jual']; ?></td>
+                <td>Rp <?php echo number_format($x['harga_beli'], 0, ',', '.'); ?></td>
+                <td>Rp <?php echo number_format($x['harga_jual'], 0, ',', '.'); ?></td>
                 <td>
                     <?php 
-                    $gambar = '';
                     $gambar_path = '';
                     
-                    // Prioritas 1: Gunakan gambar dari database jika ada
-                    if(!empty($x['gambar_produk']) && file_exists('gambar/' . $x['gambar_produk'])) {
-                        $gambar = $x['gambar_produk'];
-                        $gambar_path = 'gambar/' . $gambar;
+                    if (!empty($x['gambar_produk']) && file_exists('gambar/' . $x['gambar_produk'])) {
+                        $gambar_path = 'gambar/' . $x['gambar_produk'];
                     } else {
-                        // Prioritas 2: Cari gambar berdasarkan nama barang
                         $gambar_ditemukan = cari_gambar_barang($x['nama_barang']);
-                        if($gambar_ditemukan && file_exists('gambar/' . $gambar_ditemukan)) {
-                            $gambar = $gambar_ditemukan;
-                            $gambar_path = 'gambar/' . $gambar;
+                        if ($gambar_ditemukan && file_exists('gambar/' . $gambar_ditemukan)) {
+                            $gambar_path = 'gambar/' . $gambar_ditemukan;
                         }
                     }
                     
-                    // Tampilkan gambar atau placeholder
-                    if(!empty($gambar) && !empty($gambar_path) && file_exists($gambar_path)) {
+                    if (!empty($gambar_path) && file_exists($gambar_path)) {
                         echo '<img src="' . $gambar_path . '" alt="' . htmlspecialchars($x['nama_barang']) . '" title="' . htmlspecialchars($x['nama_barang']) . '">';
                     } else {
-                        // Tampilkan placeholder jika gambar tidak ditemukan
+                        // Tampilkan placeholder
                         echo '<img src="gambar/logo_aplikasi.png" alt="Gambar tidak tersedia" style="opacity: 0.5;" title="Gambar tidak tersedia untuk ' . htmlspecialchars($x['nama_barang']) . '">';
                     }
                     ?>
                 </td>
                 <td>
+                <div class="action-buttons">
                     <a href="edit_data.php?id_barang=<?php echo $x['id_barang']; ?>&action=edit">Edit</a>
-                    <a href="proses_barang.php?id_barang=<?php echo $x['id_barang']; ?>&action=delete" onclick="return confirm('Yakin ingin menghapus data ini?')">Hapus</a>
+                    <a href="proses_barang.php?id_barang=<?php echo $x['id_barang']; ?>&action=delete" class="btn-delete" onclick="return confirm('Apakah Anda yakin ingin menghapus data ini?');">Hapus</a>
+                    <a href="cetak2.php?kd_barang=<?php echo $x['kd_barang']; ?>" 
+                        target="_blank" 
+                        style="background:#2ecc71;">Cetak Satuan</a>
+                </div>
                 </td>
             </tr>
             <?php 
@@ -284,6 +395,30 @@ function cari_gambar_barang($nama_barang) {
             ?>
         </tbody>
     </table>
-</body>
+    
+    <?php if ($total_halaman > 1): ?>
+    <div class="pagination-container">
+        <?php 
+        $search_param = !empty($keyword) ? '&cari=' . urlencode($keyword) : '';
+        
+        // Tombol Sebelumnya
+        if ($halaman_aktif > 1) {
+            echo '<a href="?halaman=' . ($halaman_aktif - 1) . $search_param . '">« Sebelumnya</a>';
+        }
+        
+        // Tautan Angka Halaman
+        for ($i = 1; $i <= $total_halaman; $i++) {
+            $active_class = ($i == $halaman_aktif) ? 'active' : '';
+            echo '<a class="' . $active_class . '" href="?halaman=' . $i . $search_param . '">' . $i . '</a>';
+        }
+        
+        // Tombol Selanjutnya
+        if ($halaman_aktif < $total_halaman) {
+            echo '<a href="?halaman=' . ($halaman_aktif + 1) . $search_param . '">Selanjutnya »</a>';
+        }
+        ?>
+    </div>
+    <?php endif; ?>
+    </body>
 </html>
-<a href="cetak.php" target="_blank" class="btn btn-warning">Print Data</a>
+
